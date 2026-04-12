@@ -85,8 +85,9 @@ impl Extension for HttpBridgeExtension {
         if let Some(pool) = &self.pool {
             let (tx, rx) = tokio::sync::watch::channel(false);
             health::spawn_poller(pool.clone(), rx);
-            if let Ok(mut guard) = self.shutdown_tx.lock() {
-                *guard = Some(tx);
+            match self.shutdown_tx.lock() {
+                Ok(mut guard) => *guard = Some(tx),
+                Err(e) => tracing::warn!("shutdown_tx mutex poisoned on start: {e}"),
             }
             tracing::info!("HTTP bridge health poller started");
         }
@@ -94,10 +95,13 @@ impl Extension for HttpBridgeExtension {
     }
 
     fn on_shutdown(&self) -> ExtResult<()> {
-        if let Ok(mut guard) = self.shutdown_tx.lock() {
-            if let Some(tx) = guard.take() {
-                let _ = tx.send(true);
+        match self.shutdown_tx.lock() {
+            Ok(mut guard) => {
+                if let Some(tx) = guard.take() {
+                    let _ = tx.send(true);
+                }
             }
+            Err(e) => tracing::warn!("shutdown_tx mutex poisoned on shutdown: {e}"),
         }
         Ok(())
     }

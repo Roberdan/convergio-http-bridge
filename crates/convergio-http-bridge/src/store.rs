@@ -96,6 +96,13 @@ pub fn remove_extension(conn: &Connection, id: &str) -> Result<bool, String> {
     Ok(affected > 0)
 }
 
+/// Permanently delete an extension record (used for re-registration after removal).
+pub fn delete_extension(conn: &Connection, id: &str) -> Result<(), String> {
+    conn.execute("DELETE FROM http_extensions WHERE id = ?1", params![id])
+        .map_err(|e| format!("delete: {e}"))?;
+    Ok(())
+}
+
 fn row_to_extension(row: &rusqlite::Row<'_>) -> rusqlite::Result<HttpExtension> {
     let manifest_json: String = row.get(1)?;
     let manifest: Manifest = serde_json::from_str(&manifest_json).map_err(|e| {
