@@ -12,6 +12,25 @@ use convergio_db::pool::ConnPool;
 use std::time::Duration;
 use tracing::warn;
 
+/// Shared reqwest client for proxy requests (avoids per-request allocation).
+static PROXY_CLIENT: std::sync::LazyLock<reqwest::Client> = std::sync::LazyLock::new(|| {
+    reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .expect("failed to build proxy HTTP client")
+});
+
+/// Headers that must not be forwarded to the upstream extension.
+const HOP_BY_HOP: &[&str] = &[
+    "host",
+    "connection",
+    "keep-alive",
+    "transfer-encoding",
+    "te",
+    "trailer",
+    "upgrade",
+];
+
 /// Proxy handler: captures /api/ext/*rest, splits into ext_id + remaining path.
 pub async fn proxy_handler(
     axum::Extension(pool): axum::Extension<ConnPool>,
@@ -41,10 +60,13 @@ pub async fn proxy_handler(
         return err_response(StatusCode::SERVICE_UNAVAILABLE, "extension not active");
     }
 
-    let target_url = if path.is_empty() {
-        base_url.clone()
-    } else {
-        format!("{base_url}/{path}")
+    // Preserve query string from the original request
+    let query = req.uri().query();
+    let target_url = match (path.is_empty(), query) {
+        (true, None) => base_url.clone(),
+        (true, Some(q)) => format!("{base_url}?{q}"),
+        (false, None) => format!("{base_url}/{path}"),
+        (false, Some(q)) => format!("{base_url}/{path}?{q}"),
     };
     forward_request(&target_url, method, req, ext_id).await
 }
@@ -55,7 +77,7 @@ async fn forward_request(
     req: Request<Body>,
     ext_id: &str,
 ) -> axum::response::Response {
-    let client = reqwest::Client::new();
+    let client = &*PROXY_CLIENT;
     let builder = match method {
         Method::GET => client.get(url),
         Method::POST => client.post(url),
@@ -64,12 +86,31 @@ async fn forward_request(
         Method::PATCH => client.patch(url),
         _ => return err_response(StatusCode::METHOD_NOT_ALLOWED, "method not allowed"),
     };
-    let mut builder = builder.timeout(Duration::from_secs(30));
-    for (name, value) in req.headers() {
+
+    // Forward headers, skipping hop-by-hop headers
+    let (parts, body) = req.into_parts();
+    let mut builder = builder;
+    for (name, value) in &parts.headers {
+        if HOP_BY_HOP.contains(&name.as_str()) {
+            continue;
+        }
         if let Ok(v) = value.to_str() {
             builder = builder.header(name.as_str(), v);
         }
     }
+
+    // Forward request body for methods that carry one
+    if matches!(method, Method::POST | Method::PUT | Method::PATCH) {
+        let bytes = match axum::body::to_bytes(Body::new(body), 10 * 1024 * 1024).await {
+            Ok(b) => b,
+            Err(e) => {
+                warn!(ext_id = %ext_id, error = %e, "failed to read request body");
+                return err_response(StatusCode::BAD_REQUEST, "failed to read request body");
+            }
+        };
+        builder = builder.body(bytes);
+    }
+
     match builder.send().await {
         Ok(resp) => {
             let status =
@@ -122,5 +163,24 @@ mod tests {
         };
         assert_eq!(ext_id, "openclaw");
         assert_eq!(path, "");
+    }
+
+    #[test]
+    fn hop_by_hop_headers_blocked() {
+        for h in HOP_BY_HOP {
+            assert!(
+                [
+                    "host",
+                    "connection",
+                    "keep-alive",
+                    "transfer-encoding",
+                    "te",
+                    "trailer",
+                    "upgrade"
+                ]
+                .contains(h),
+                "unexpected hop-by-hop header: {h}"
+            );
+        }
     }
 }

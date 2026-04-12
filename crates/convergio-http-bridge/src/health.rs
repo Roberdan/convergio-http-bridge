@@ -77,12 +77,20 @@ pub async fn check_all(pool: &ConnPool, client: &reqwest::Client) {
 }
 
 /// Spawn the background health check polling loop.
-pub fn spawn_poller(pool: ConnPool, shutdown: tokio::sync::watch::Receiver<bool>) {
+pub fn spawn_poller(pool: ConnPool, mut shutdown: tokio::sync::watch::Receiver<bool>) {
     let client = reqwest::Client::new();
     tokio::spawn(async move {
         let interval = Duration::from_secs(HEALTH_CHECK_INTERVAL_SECS);
         loop {
-            tokio::time::sleep(interval).await;
+            tokio::select! {
+                _ = tokio::time::sleep(interval) => {}
+                _ = shutdown.changed() => {
+                    if *shutdown.borrow() {
+                        info!("health check poller shutting down");
+                        break;
+                    }
+                }
+            }
             if *shutdown.borrow() {
                 info!("health check poller shutting down");
                 break;

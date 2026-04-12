@@ -47,6 +47,7 @@ pub async fn deliver_event(pool: &ConnPool, client: &reqwest::Client, event: &Do
             .post(&url)
             .header("Content-Type", "application/json")
             .header("X-Convergio-Event", "domain-event")
+            .header("X-Convergio-Extension-Id", &ext.id)
             .body(event_json.clone())
             .timeout(Duration::from_secs(10))
             .send()

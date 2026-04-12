@@ -86,3 +86,15 @@ fn remove_nonexistent_returns_false() {
     let removed = remove_extension(&conn, "no-such-ext").unwrap();
     assert!(!removed);
 }
+
+#[test]
+fn delete_and_reinsert() {
+    let conn = setup();
+    insert_extension(&conn, &sample_request("ext-recycle")).unwrap();
+    remove_extension(&conn, "ext-recycle").unwrap();
+    // Re-registration requires delete first (PK constraint)
+    delete_extension(&conn, "ext-recycle").unwrap();
+    insert_extension(&conn, &sample_request("ext-recycle")).unwrap();
+    let ext = get_by_id(&conn, "ext-recycle").unwrap().unwrap();
+    assert_eq!(ext.state, BridgeState::Registered);
+}
