@@ -212,7 +212,7 @@ version = "0.1.9"
 source = "git+https://github.com/Roberdan/convergio-sdk?tag=v0.1.9#ccbc95bb56a3a8e78fb713214f3f8b8ea9341f5a"
 dependencies = [
  "chrono",
- "convergio-types",
+ "convergio-types 0.1.9",
  "r2d2",
  "r2d2_sqlite",
  "rusqlite",
@@ -229,7 +229,7 @@ dependencies = [
  "chrono",
  "convergio-db",
  "convergio-telemetry",
- "convergio-types",
+ "convergio-types 0.1.10",
  "r2d2",
  "r2d2_sqlite",
  "reqwest",
@@ -246,7 +246,7 @@ name = "convergio-telemetry"
 version = "0.1.9"
 source = "git+https://github.com/Roberdan/convergio-sdk?tag=v0.1.9#ccbc95bb56a3a8e78fb713214f3f8b8ea9341f5a"
 dependencies = [
- "convergio-types",
+ "convergio-types 0.1.9",
  "serde",
  "serde_json",
  "tracing",
@@ -258,6 +258,19 @@ dependencies = [
 name = "convergio-types"
 version = "0.1.9"
 source = "git+https://github.com/Roberdan/convergio-sdk?tag=v0.1.9#ccbc95bb56a3a8e78fb713214f3f8b8ea9341f5a"
+dependencies = [
+ "axum",
+ "chrono",
+ "dirs",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "convergio-types"
+version = "0.1.10"
+source = "git+https://github.com/Roberdan/convergio-sdk?tag=v0.1.10#66dce8ff6eb5b39224d8c318af5ab0a6eea13bd6"
 dependencies = [
  "axum",
  "chrono",
@@ -359,7 +372,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -395,7 +408,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.52.0",
 ]
 
 [[package]]
@@ -971,7 +984,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
@@ -1557,7 +1570,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a766e1110788c36f4fa1c2b71b387a7815aa65f88ce0229841826633d93723e"
 dependencies = [
  "libc",
- "windows-sys 0.61.2",
+ "windows-sys 0.60.2",
 ]
 
 [[package]]
